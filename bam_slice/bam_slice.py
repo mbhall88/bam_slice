@@ -315,6 +315,7 @@ def main(sam, positions_file, output, column, delimiter, padding):
         specified by the --delimiter and --column options respectively. Will
         read from STDIN if passed the - character instead of a path. If using
         STDIN it is assumed you are piping only positions and no other data.
+        The file should also not contain a header.
 
     """
     fname_prefix = os.path.join(output, get_filename_prefix(sam))
@@ -323,7 +324,7 @@ def main(sam, positions_file, output, column, delimiter, padding):
     if positions_file == '-':
         positions = sorted(sys.stdin.readlines())
     else:
-        data = pd.read_csv(positions_file, sep=delimiter)
+        data = pd.read_csv(positions_file, sep=delimiter, header=None)
         positions = sorted(data[column].drop_duplicates())
 
     # add padding to either side of positions to create intervals and then
