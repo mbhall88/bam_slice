@@ -11,7 +11,7 @@ from typing import List, Tuple
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 FILE_LIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0] - 5
-PADDING = 100
+
 
 def merge_overlap_intervals(intervals: List[List[int]]) -> List[List[int]]:
     """Checks consecutive intervals and if they overlap it merges them into a
@@ -94,7 +94,8 @@ def extend_interval(interval_to_extend: List[int],
     return interval_to_extend
 
 
-def handle_nones(aligned_pairs: List[Tuple[int]]) -> Tuple[List[int], List[int]]:
+def handle_nones(aligned_pairs: List[Tuple[int, int]]) -> \
+        Tuple[List[int], List[int]]:
     """Replaces all instances of None with the preceeding element.
 
     Args:
@@ -130,7 +131,8 @@ def handle_nones(aligned_pairs: List[Tuple[int]]) -> Tuple[List[int], List[int]]
     return handled_read_positions, handled_ref_positions
 
 
-def ref_interval_indexes(interval: List[int], ref: List[int]) -> Tuple[int]:
+def ref_interval_indexes(interval: List[int], ref: List[int]) -> \
+        Tuple[int, int]:
     """Gets interval's indexes within ref.
 
     Args:
@@ -158,12 +160,12 @@ def ref_interval_indexes(interval: List[int], ref: List[int]) -> Tuple[int]:
         (0, 0)
     """
     start, end = interval
-    # search = lambda x: bisect.bisect_left(ref, x)
     return bisect.bisect_left(ref, start), bisect.bisect_right(ref, end)
 
 
 def get_subsequence_indexes(interval: List[int],
-                            clean_aligned_pairs: Tuple[List[int], List[int]]) -> List[int]:
+                            clean_aligned_pairs: Tuple[List[int], List[int]]) \
+        -> Tuple[int, int]:
     """Given an interval (assumed to be from the second list in
     clean_aligned_pairs) will return the corresponding interval in the first
     list in clean_aligned_pairs.
@@ -232,14 +234,12 @@ def dump_interval_fastq(interval: List[int],
     sequence = read.query_sequence
     quality = read.query_qualities
     subsequence_indexes = get_subsequence_indexes(interval, clean_aligned_pairs)
-    if subsequence_indexes is not None: # interval is in read
+    if subsequence_indexes is not None:  # interval is in read
         start, end = subsequence_indexes
         read_subsequence = sequence[start: end + 1]
         quality_subsequence = quality[start: end + 1]
         append_fastq(read_subsequence, quality_subsequence,
-                     read.name, fastq_file)
-
-
+                     read.query_name, fastq_file)
 
 
 def append_fastq(subsequence: str, quality: List[int],
@@ -255,7 +255,7 @@ def append_fastq(subsequence: str, quality: List[int],
     """
     quality_string = "".join([chr(x + 33) for x in quality])
     fastq_file.write("@{0}\n{1}\n+\n{2}\n".format(header, subsequence,
-                                             quality_string))
+                                                  quality_string))
 
 
 def get_filename_prefix(fname: str) -> str:
@@ -284,7 +284,7 @@ def get_filename_prefix(fname: str) -> str:
 
 @click.command(context_settings=CONTEXT_SETTINGS)
 @click.argument('sam',
-              type=click.Path(exists=True, dir_okay=False, resolve_path=True))
+                type=click.Path(exists=True, dir_okay=False, resolve_path=True))
 @click.argument('positions_file')
 @click.option('--output', '-o',
               default='.',
@@ -300,7 +300,12 @@ def get_filename_prefix(fname: str) -> str:
               default='\t',
               type=str,
               help="Delimiter for the positions file. [\\t]")
-def main(sam, positions_file, output, column, delimiter):
+@click.option('--padding', '-p',
+              default=100,
+              type=int,
+              help="Take this number of bases either side of position in the "
+                   "slice.")
+def main(sam, positions_file, output, column, delimiter, padding):
     """A script to slice regions out of a [BS]AM file.
 
     Positional Arguments (required):\n
@@ -312,7 +317,7 @@ def main(sam, positions_file, output, column, delimiter):
         STDIN it is assumed you are piping only positions and no other data.
 
     """
-    fname_prefix = os.join.path(output, get_filename_prefix(sam))
+    fname_prefix = os.path.join(output, get_filename_prefix(sam))
 
     # read in snps file and get reference positions for all variants
     if positions_file == '-':
@@ -326,8 +331,8 @@ def main(sam, positions_file, output, column, delimiter):
     intervals = []
     for pos in positions:
         # if taking padding off position goes below 0, make it 0 instead
-        start =  pos - PADDING if pos - PADDING >= 0 else 0
-        intervals.append([start, pos + PADDING])
+        start = pos - padding if pos - padding >= 0 else 0
+        intervals.append([start, pos + padding])
     merged_intervals = merge_overlap_intervals(intervals)
 
     # batch intervals into lots of FILE_LIMIT as you cannot have more than that
@@ -335,16 +340,18 @@ def main(sam, positions_file, output, column, delimiter):
     batches = math.ceil(len(merged_intervals) / FILE_LIMIT)
 
     # loop through each batch and write fastq files
-    for i in range(batches):
+    for i in range(int(batches)):
         batch_fastq_files = {}  # holds all open files for batch
         batch_merged_intervals = merged_intervals[i * FILE_LIMIT:
                                                   (i + 1) * FILE_LIMIT]
 
-        with pysam.AlignmentFile(bampath, 'rb') as samfile:
+        with pysam.AlignmentFile(sam, 'rb') as samfile:
             # loop through each read in the BAM/SAM file
             for read in samfile:
                 # skip non-primary alignments
-                if read.is_unmapped or read.is_secondary or read.is_supplementary:
+                if (read.is_unmapped or
+                        read.is_secondary or
+                        read.is_supplementary):
                     continue
                 # get the index correspondences between read and reference
                 aligned_pairs = read.get_aligned_pairs()
