@@ -365,7 +365,7 @@ def main(sam, positions_file, output, column, delimiter, padding):
                                                              interval[0],
                                                              interval[1])
                     if filename not in batch_fastq_files:
-                        batch_fastq_files[filename] = gzip.open(filename, 'wb')
+                        batch_fastq_files[filename] = gzip.open(filename, 'w')
                     fastq_file = batch_fastq_files[filename]
 
                     # check if interval is in read and write fastq entry for it
