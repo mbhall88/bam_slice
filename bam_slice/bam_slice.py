@@ -308,14 +308,18 @@ def main(sam, positions_file, output, column, delimiter):
         POSITIONS_FILE: A file containing positions to cut out from SAM. The
         delimiter of the file and the column containing the positions can be
         specified by the --delimiter and --column options respectively. Will
-        read from STDIN if passed the - character instead of a path.
+        read from STDIN if passed the - character instead of a path. If using
+        STDIN it is assumed you are piping only positions and no other data.
 
     """
     fname_prefix = os.join.path(output, get_filename_prefix(sam))
 
     # read in snps file and get reference positions for all variants
-    data = pd.read_csv(positions_file, sep=delimiter)
-    positions = sorted(data[column].drop_duplicates())
+    if positions_file == '-':
+        positions = sorted(sys.stdin.readlines())
+    else:
+        data = pd.read_csv(positions_file, sep=delimiter)
+        positions = sorted(data[column].drop_duplicates())
 
     # add padding to either side of positions to create intervals and then
     # merge overlapping intervals.
