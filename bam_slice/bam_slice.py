@@ -338,10 +338,10 @@ def main(sam, positions_file, output, column, delimiter, padding):
 
     # batch intervals into lots of FILE_LIMIT as you cannot have more than that
     # number of files open at once
-    batches = math.ceil(len(merged_intervals) / FILE_LIMIT)
+    batches = int(math.ceil(len(merged_intervals) / FILE_LIMIT))
 
     # loop through each batch and write fastq files
-    for i in range(int(batches)):
+    for i in range(batches):
         batch_fastq_files = {}  # holds all open files for batch
         batch_merged_intervals = merged_intervals[i * FILE_LIMIT:
                                                   (i + 1) * FILE_LIMIT]
