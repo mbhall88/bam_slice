@@ -6,11 +6,13 @@ import math
 import resource
 import gzip
 import click
+import io
 import pandas as pd
 from typing import List, Tuple
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 FILE_LIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0] - 5
+OUT = io.StringIO()
 
 
 def merge_overlap_intervals(intervals: List[List[int]]) -> List[List[int]]:
@@ -365,7 +367,9 @@ def main(sam, positions_file, output, column, delimiter, padding):
                                                              interval[0],
                                                              interval[1])
                     if filename not in batch_fastq_files:
-                        batch_fastq_files[filename] = gzip.open(filename, 'w')
+                        file_ = gzip.GzipFile(filename=filename, mode='w',
+                                              fileobj=OUT)
+                        batch_fastq_files[filename] = file_
                     fastq_file = batch_fastq_files[filename]
 
                     # check if interval is in read and write fastq entry for it
