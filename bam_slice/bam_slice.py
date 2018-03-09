@@ -4,15 +4,13 @@ import sys
 import bisect
 import math
 import resource
-import gzip
 import click
-import io
 import pandas as pd
 from typing import List, Tuple
+from io import TextIOWrapper
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 FILE_LIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0] - 5
-OUT = io.BytesIO()
 
 
 def merge_overlap_intervals(intervals: List[List[int]]) -> List[List[int]]:
@@ -220,7 +218,7 @@ def get_subsequence_indexes(interval: List[int],
 def dump_interval_fastq(interval: List[int],
                         clean_aligned_pairs: Tuple[List[int], List[int]],
                         read: pysam.AlignedSegment,
-                        fastq_file: gzip.GzipFile) -> None:
+                        fastq_file: TextIOWrapper) -> None:
     """For a given interval, and aligned pairs for a read to a reference, pull
     out the read subsequence within that interval and the sub-quality sequence
     and write an entry to fastq. If interval does not occur within read, then
@@ -245,7 +243,7 @@ def dump_interval_fastq(interval: List[int],
 
 
 def append_fastq(subsequence: str, quality: List[int],
-                 header: str, fastq_file: gzip.GzipFile) -> None:
+                 header: str, fastq_file: TextIOWrapper) -> None:
     """Writes an entry to a fastq file.
 
     Args:
@@ -363,12 +361,11 @@ def main(sam, positions_file, output, column, delimiter, padding):
 
                 # for each interval within this read, write entry to fastq
                 for interval in batch_merged_intervals:
-                    filename = "{0}_{1}-{2}.fastq.gz".format(fname_prefix,
-                                                             interval[0],
-                                                             interval[1])
+                    filename = "{0}_{1}-{2}.fastq".format(fname_prefix,
+                                                          interval[0],
+                                                          interval[1])
                     if filename not in batch_fastq_files:
-                        file_ = gzip.GzipFile(filename=filename, mode='w',
-                                              fileobj=OUT)
+                        file_ = open(filename, 'w')
                         batch_fastq_files[filename] = file_
                     fastq_file = batch_fastq_files[filename]
 
