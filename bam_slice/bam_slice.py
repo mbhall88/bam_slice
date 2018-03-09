@@ -12,7 +12,7 @@ from typing import List, Tuple
 
 CONTEXT_SETTINGS = dict(help_option_names=['-h', '--help'])
 FILE_LIMIT = resource.getrlimit(resource.RLIMIT_NOFILE)[0] - 5
-OUT = io.StringIO()
+OUT = io.BytesIO()
 
 
 def merge_overlap_intervals(intervals: List[List[int]]) -> List[List[int]]:
